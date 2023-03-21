@@ -23,6 +23,7 @@ screen = pygame.display.set_mode((s_w, s_h))
 display = pygame.Surface((s_w / 2, s_h / 2))
 
 clock = pygame.time.Clock()
+global dt
 dt = 1
 
 #Alternate textures |altTexture |alternateTexture |texture |init
@@ -41,6 +42,8 @@ GreenTexture.fill((0, 255, 0))
 TileTestTexture = pygame.Surface((32, 32))
 TileTestTexture.fill((25, 0, 40))
 
+a = []
+
 #Real textures |officialTexture |texture |init
 PlayerTexture = utils.loadImage("Sprites/Entities/Player/0r.png")
 DirtTexture = utils.loadImage("Sprites/Tilesets/DirtSet/4.png")
@@ -51,7 +54,7 @@ _p_h = 42
 p_w = _p_w
 p_h = _p_h
 p_dir = [0, 0]
-Player = entity.Player(utils.scale(BlankTexture, (p_w, p_h)), 16, 16, 0, 0.286)
+Player = entity.Player(utils.scale(BlankTexture, (p_w, p_h)), 16, 16, 0, 0.34001)
 
 jumpBuffer = 0
 _jumpBuffer = 7
@@ -224,6 +227,7 @@ def shoot(Player, mouse_pos, gun_type):
                                    (shoot_y / math.sqrt(shoot_x ** 2 + shoot_y ** 2) * 12) * Player.hand_item.speed)
 
 def charge_bow(Player):
+    global dt
     if isinstance(Player.hand_item, item.Bow):
         Player.hand_item.charge = min(Player.hand_item.charge + 1, Player.hand_item.max_charge)
 
@@ -252,8 +256,7 @@ last_t = time.time()
 while True:
     mouse_pos = pygame.mouse.get_pos()
 
-    #dt = (time.time() - last_t) * 60
-    dt = 1
+    dt = (time.time() - last_t) * 60
     last_t = time.time()
     
     #Fill resize screen a
@@ -271,7 +274,7 @@ while True:
                     release_bow(Player, mouse_pos)
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                jumpBuffer = _jumpBuffer + 2
+                jumpBuffer = _jumpBuffer + min(max(Player.vel[1], 2), 4)
                 if not grounded:
                     wJumpBuffer = _wJumpBuffer
             if event.key == pygame.K_r and not grounded and not walled:
@@ -280,10 +283,22 @@ while True:
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_SPACE and not walled:
                 if Player.vel[1] < 0:
-                    Player.vel[1] *= 0.864
+                    Player.vel[1] *= 0.8721
             if (event.key == pygame.K_a or event.key == pygame.K_d) and grounded:
                 Player.vel[0] *= 0.64
 
+    """
+    a.append([Player.hitbox.x, Player.hitbox.y])
+
+    for i in a:
+        pygame.draw.circle(display, (255, 0, 0), i, 1)
+    """
+
+    camera[0] = s_w / 4 + (-4 if Player.vel[0] > 0 else 4)
+
+    #pygame.draw.circle(display, (255, 0, 0), camera, 1)
+    #pygame.draw.circle(display, (0, 255, 0), (s_w / 4, s_h / 4), 1)
+    
     walled = 0
 
     collideables = getCollideable(Tilemap, Player, True, False)
@@ -323,17 +338,17 @@ while True:
     #Movement
     keys = pygame.key.get_pressed()
     if keys[pygame.K_a] and walled != -1:
-        accelx = (0.886 - int(not(grounded)) * 0.37)
-        Player.vel[0] = Player.vel[0] * (0.4 if Player.vel[0] >= 0 else 1)
-        Player.vel[0] -= accelx if Player.vel[0] - accelx >= -4.37 else 0
+        accelx = (0.88842 - int(not(grounded)) * 0.373)
+        Player.vel[0] = Player.vel[0] * (0.42 if Player.vel[0] >= 0 else 1)
+        Player.vel[0] -= accelx if Player.vel[0] - accelx >= -4.3 else 0
     if keys[pygame.K_d] and walled != 1:
-        accelx = (0.886 - int(not(grounded)) * 0.37)
-        Player.vel[0] = Player.vel[0] * (0.4 if Player.vel[0] <= 0 else 1)
-        Player.vel[0] += accelx if Player.vel[0] + accelx <= 4.37 else 0
+        accelx = (0.88842 - int(not(grounded)) * 0.373)
+        Player.vel[0] = Player.vel[0] * (0.42 if Player.vel[0] <= 0 else 1)
+        Player.vel[0] += accelx if Player.vel[0] + accelx <= 4.3 else 0
     if keys[pygame.K_f] and not walled:
         if Player.dashable:
-            dash_velx = 8.488564 * int(not bool(abs(Player.vel[0]) < 0.84)) * (1 if Player.vel[0] > 0 else -1) + (0.361 if grounded else 0)
-            dash_vely = -0.85314 * int(not(grounded)) + abs(Player.vel[1]) / -4.3 - walled * 0.6
+            dash_velx = 8.13413998697 * int(not bool(abs(Player.vel[0]) < 0.858)) * (1 if Player.vel[0] > 0 else -1) + (0.361 if grounded else 0)
+            dash_vely = -0.83786337995 * int(not(grounded)) + abs(Player.vel[1]) / -4.246 - walled * 0.512
             Player.dash(dash_velx, dash_vely)
 
             sounds.dash.play()
@@ -361,13 +376,13 @@ while True:
     #Apply physics
     if grounded:
         groundBuffer = _groundBuffer
-        Player.vel[0] *= 0.881
+        Player.vel[0] -= Player.vel[0] * dt *0.1212
         if lgrounded == False:
             Player.vel[0] *= 0.9
 
     if walled:
         if Player.vel[1] > 0:
-            Player.vel[1] *= 0.938
+            Player.vel[1] *= 0.9162
         else:
             Player.vel[1] *= 0.971
         Player.vel[0] += walled * 0.02
@@ -392,10 +407,10 @@ while True:
         if _jumpBuffer > jumpBuffer and jumpBuffer > 0:
             jumpBuffer = 0
             groundBuffer = 0
-            Player.vel[1] = -8.1172
-            Player.vel[0] *= 1.14
+            Player.vel[1] = -8.54421
+            Player.vel[0] *= 1.023
             Player.dashable = False
-            Player.dash_tick = 46
+            Player.dash_tick = 48
 
             sounds.jump.play()
         if Player.vel[1] > 0:
@@ -404,7 +419,7 @@ while True:
     if wJumpBuffer > 0 and walled:
         wJumpBuffer = 0
         Player.walljump(Player.vel[0], -7.83)
-        Player.dash_tick += 22
+        Player.dash_tick += 24
 
     #Hotbar input
     if keys[pygame.K_1]:
@@ -420,9 +435,11 @@ while True:
         if Player.vel[1] > 1.5:
             if Player.act != "jump_down":
                 Player.set_act("jump_down")
-        elif 0.1 > Player.vel[1] and Player.vel[1] > -0.1:
+        elif 0.1 > Player.vel[1] and Player.vel[1] > -0.06:
             if Player.act != "idle":
                 Player.set_act("idle")
+                Player.vel[1] *= 0.98979
+                Player.vel[0] *= 1.09192
         elif -7 > Player.vel[1]:
             if Player.act != "jump_up_0":
                 Player.set_act("jump_up_0")
@@ -462,8 +479,8 @@ while True:
             if proj.alive == False:
                 Player.hand_item.projs.pop(i)
 
-            proj.move_x()
-            proj.move_y()
+            proj.move_x(dt)
+            proj.move_y(dt)
             proj.apply_air_res(0.994, 0.994)
 
             proj.draw(display, scroll)
@@ -505,6 +522,13 @@ while True:
     screen.blit(edit_dis, (0, 0))
 
     pygame.display.set_caption(f"Sawblade - {int(clock.get_fps())}")
+
+    """
+    for y in range(screen.get_height()):
+        for x in range(screen.get_width()):
+            if screen.get_at((x, y)) == (36, 8, 43):
+                screen.set_at((x, y), (0, 255, 0))
+    """
 
     #Update the screen
     clock.tick(60)
