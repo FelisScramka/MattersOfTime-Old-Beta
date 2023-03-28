@@ -39,7 +39,7 @@ class Entity():
             image = self.anis[self.act][self.ani_i]
         except:
             image = self.sprite
-        image = pygame.transform.scale(image, scale) if scale[0] > 0 and scale[1] > 0 else self.sprite
+        image = pygame.transform.scale(image, scale) if scale[0] > 0 and scale[1] > 0 else image
         if flip == True:
             if self.vel[0] < 0:
                 image = pygame.transform.flip(image, True, False)
