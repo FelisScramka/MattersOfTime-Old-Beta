@@ -4,6 +4,7 @@ import pygame, random, time, math, sys
 pygame.init()
 
 import Assets.Images.Sprites.tiles as tiles
+import Assets.Images.Sprites.animations as animations
 
 import Assets.Sounds.Sfx.sounds as sounds
 
@@ -11,13 +12,15 @@ import Assets.Scripts.Classes.tilemap as tilemap
 import Assets.Scripts.Classes.item as item
 import Assets.Scripts.Classes.entity as entity
 import Assets.Scripts.Classes.hitbox as hitbox
+import Assets.Scripts.Classes.camera as camera
 import Assets.Scripts.Classes.spark as spark
+
 import Assets.Scripts.Utilities as utils
 
 from pygame.math import Vector2
 
 #Setup the window, display and clock |screen |display |clock
-s_w = 960
+s_w= 960
 s_h = 720
 screen = pygame.display.set_mode((s_w, s_h))
 display = pygame.Surface((s_w / 2, s_h / 2))
@@ -54,7 +57,7 @@ _p_h = 42
 p_w = _p_w
 p_h = _p_h
 p_dir = [0, 0]
-Player = entity.Player(utils.scale(BlankTexture, (p_w, p_h)), 16, 16, 0, 0.34001)
+Player = entity.Player(utils.scale(BlankTexture, (p_w, p_h)), 16, 16, 0, 0.34001) #0.34001
 
 jumpBuffer = 0
 _jumpBuffer = 7
@@ -63,39 +66,16 @@ wJumpBuffer = 0
 _wJumpBuffer = 5
 
 groundBuffer = 0
-_groundBuffer = 6
+_groundBuffer = 7
 
 Player.inventory.slots[0] = item.Pistol()
 Player.inventory.slots[1] = item.SMG()
 Player.inventory.slots[2] = item.Revolver()
 Player.inventory.slots[3] = item.Bow()
 
-idles = []
 
-for i in range(0, 8):
-    idles.append(utils.loadImage("Sprites/Entities/Player/0.png"))
-for i in range(0, 8):
-    idles.append(utils.loadImage("Sprites/Entities/Player/idle_1.png"))
-for i in range(0, 8):
-    idles.append(utils.loadImage("Sprites/Entities/Player/idle_2.png"))
-
-Player.add_ani("idle", idles)
-
-runs = []
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_0.png"))
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_1.png"))
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_2.png"))
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_3.png"))
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_2.png"))
-for i in range(0, 3):
-    runs.append(utils.loadImage("Sprites/Entities/Player/run_1.png"))
-
-Player.add_ani("run", runs)
+Player.add_ani("idle", animations.p_idles)
+Player.add_ani("run", animations.p_runs)
 
 Player.add_ani("jump_up_0", [utils.loadImage("Sprites/Entities/Player/jump_up_0.png")])
 Player.add_ani("jump_up_1", [utils.loadImage("Sprites/Entities/Player/jump_up_1.png")])
@@ -170,17 +150,16 @@ sprites.append(Player)
 sprites.append(Tilemap)
 sprites.append(Tilemap2)
 
-camera = [s_w / 4, s_h / 4]
-global scroll
-scroll = [0, 0]
-cam_rot = 0
+Camera = camera.Camera([int(s_w / 2), int(s_h / 2)])
+Camera.objs.append(Player)
+Camera.objs.append(Tilemap)
+cam_rot = 45
 cam_zoom = 1
 global fol_obj
 fol_obj = Player
 
 sparks = []
 
-global click_phase
 click_phase = 0
 
 entities = []
@@ -208,15 +187,7 @@ def getCollideable(tilemap, obj, x = True, y = True):
 
     return collides
 
-#Shift the camera toward the followed object
-def camera_shift(intensity):
-    distx = camera[0] - fol_obj.hitbox.x - scroll[0]
-    disty = camera[1] - fol_obj.hitbox.y - scroll[1]
-    for spr in sprites:
-        scroll[0] += distx * intensity
-        scroll[1] += disty * intensity
-
-def shoot(Player, mouse_pos, gun_type):
+def shoot(Player, mouse_pos : Vector2, gun_type):
     if isinstance(Player.hand_item, gun_type):
         if Player.hand_item.shootable:
             shoot_x = (mouse_pos[0] - (Player.hitbox.x + Player.hitbox.w / 2 + scroll[0]) * 2)
@@ -253,6 +224,9 @@ collideables = []
 
 last_t = time.time()
 
+def relus(n : int):
+    return int(n > 0)
+
 while True:
     mouse_pos = pygame.mouse.get_pos()
 
@@ -277,7 +251,7 @@ while True:
                 jumpBuffer = _jumpBuffer + min(max(Player.vel[1], 2), 4)
                 if not grounded:
                     wJumpBuffer = _wJumpBuffer
-            if event.key == pygame.K_r and not grounded and not walled:
+            if event.key == pygame.K_t and not grounded and not walled:
                 Player.vel[1] += 7.364
                 Player.vel[0] *= 0.79
         if event.type == pygame.KEYUP:
@@ -293,8 +267,6 @@ while True:
     for i in a:
         pygame.draw.circle(display, (255, 0, 0), i, 1)
     """
-
-    camera[0] = s_w / 4 + (-4 if Player.vel[0] > 0 else 4)
 
     #pygame.draw.circle(display, (255, 0, 0), camera, 1)
     #pygame.draw.circle(display, (0, 255, 0), (s_w / 4, s_h / 4), 1)
@@ -313,7 +285,7 @@ while True:
             if Player.vel[0] < 0:
                 Player.hitbox.x = hb.x + hb.w
                 walled = -1 if not parachute else 0
-            elif Player.vel[0] >= 0:
+            else:
                 Player.hitbox.x = hb.x - Player.hitbox.w
                 walled = 1 if not parachute else 0
             Player.vel[0] *= 0.874
@@ -328,10 +300,10 @@ while True:
         collide = hb.collide(Player.hitbox)
         if collide:
             if Player.vel[1] < 0:
-                Player.vel[1] = -0.006
+                Player.vel[1] = -0.024
                 Player.hitbox.y = hb.y + hb.h
-            elif Player.vel[1] >= 0:
-                Player.vel[1] = 0.006
+            else:
+                Player.vel[1] = 0.024
                 Player.hitbox.y = hb.y - Player.hitbox.h
                 grounded = True
 
@@ -347,8 +319,11 @@ while True:
         Player.vel[0] += accelx if Player.vel[0] + accelx <= 4.3 else 0
     if keys[pygame.K_f] and not walled:
         if Player.dashable:
-            dash_velx = 8.13413998697 * int(not bool(abs(Player.vel[0]) < 0.858)) * (1 if Player.vel[0] > 0 else -1) + (0.361 if grounded else 0)
-            dash_vely = -0.83786337995 * int(not(grounded)) + abs(Player.vel[1]) / -4.246 - walled * 0.512
+            p_side = (1 if Player.vel[0] > 0 else -1)
+            
+            dash_velx = 8.13413998697 * int(not bool(abs(Player.vel[0]) < 0.858)) * p_side + (0.361 * relus(grounded) * p_side) + (0.01 * relus(walled) * p_side)
+            dash_vely = -0.83786337995 * int(not(grounded)) + abs(Player.vel[1]) / -4.246
+            
             Player.dash(dash_velx, dash_vely)
 
             sounds.dash.play()
@@ -497,11 +472,8 @@ while True:
                     except:
                         pass
 
-    camera_shift(0.09)
-
     #Update the map
     #Tilemap2.draw(display, (scroll[0] * 0.82, scroll[1] * 0.96))
-    Tilemap.draw(display, scroll)
 
     #Iterate through sparks and draw them
     for i, sp in enumerate(sparks):
@@ -510,10 +482,13 @@ while True:
             sparks.pop(i)
         sp.draw(display, scroll)
 
-    for hb in collideables:
-        pygame.draw.rect(display, (255, 0, 0), pygame.Rect(hb.x + scroll[0], hb.y + scroll[1], hb.w, hb.h))
+    #for hb in collideables:
+    #    pygame.draw.rect(display, (255, 0, 0), pygame.Rect(hb.x + scroll[0], hb.y + scroll[1], hb.w, hb.h))
 
-    Player.draw(display, [scroll[0] + (_p_w - p_w) / 2, scroll[1] + (_p_h - p_h)], [p_w, p_h])
+    #Player.draw(display, [scroll[0] + (_p_w - p_w) / 2, scroll[1] + (_p_h - p_h)], [p_w, p_h])
+
+    Camera.follow(fol_obj, 0.148)
+    Camera.render(display)
 
     #Player.draw_hand(display, scroll)
 
